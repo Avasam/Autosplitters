@@ -1,3 +1,7 @@
+This fork adds some more options to the Talos autosplitter:
+- (optionnal) Only split on Nexus when comming back from A6 (for Warp splits)
+- Split on any world transition" has been changed to "Split on any world transition, except Nexus/DLC Hub"
+
 # Autosplitters
 Speedrunners like to have splits to keep track of how well they're doing, compared to previous runs. Autosplitters facilitate this by splitting *for* the runner, so they can focus their attention on the game. Unfortunately, these do not spring from the ground fully formed, they have to be written! I've been slowly amassing a few of these that I wrote, and I'm collecting them here so I don't lose track of them all.
 
