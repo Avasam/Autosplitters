@@ -11,6 +11,7 @@ startup {
   // Commonly used, defaults to true
   settings.Add("Don't start the run if cheats are active", true);
   settings.Add("Split on return to Nexus or DLC Hub", true);
+  settings.Add("Only when returning from A6", false, "Only A6", "Split on return to Nexus or DLC Hub");
   settings.Add("Unsplit when re-entering the world you just left", false, "Unsplit when re-entering a world", "Split on return to Nexus or DLC Hub");
 
   settings.Add("Split on item unlocks", true);
@@ -419,7 +420,9 @@ split {
       (mapName.EndsWith("Nexus.wld") || mapName.EndsWith("DLC_01_Hub.wld"))) {
       vars.log("Returned to Nexus/Hub from " + vars.currentWorld);
       vars.lastExitedWorld = vars.currentWorld;
-      return true;
+      if (!settings["Only A6"] || vars.currentWorld.EndsWith("Cloud_1_06.wld")) {
+        return true;
+      }
     }
     if (settings["Unsplit when re-entering the world you just left"] &&
       mapName == vars.lastExitedWorld) {
