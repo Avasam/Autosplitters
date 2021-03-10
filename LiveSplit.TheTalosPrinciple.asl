@@ -46,6 +46,7 @@ startup {
 
   settings.CurrentDefaultParent = null;
   settings.Add("bug2", false, "Additional logging for Ninja bug, where splits were completely missed");
+  settings.Add("bug3", false, "Additional logging for Steph bug, where returning to nexus doesn't split");
 
   vars.logFilePath = Directory.GetCurrentDirectory() + "\\autosplitter_talos.log";
   vars.log = (Action<string>)((string logLine) => {
@@ -163,13 +164,46 @@ startup {
 }
 
 init {
+  /*Steam (x64)
+  Executable:   C:\Program Files (x86)\Steam\steamapps\common\The Talos Principle\Bin\x64\Talos.exe
+  Log file:     C:\Program Files (x86)\Steam\steamapps\common\The Talos Principle\Log\Talos.log
+
+    Steam (x86)
+  Executable:   C:\Program Files (x86)\Steam\steamapps\common\The Talos Principle\Bin\Talos.exe
+  Log file:     C:\Program Files (x86)\Steam\steamapps\common\The Talos Principle\Log\Talos.log
+
+    Epic Games (x64 only)
+  Executable:   C:\Program Files\Epic Games\TheTalosPrinciple\Talos.exe
+  Log file:     C:\Program Files\Epic Games\TheTalosPrinciple\Log\Talos.log
+
+    Xbox (x64 only)
+  Executable:   C:\Program Files\WindowsApps\DevolverDigital.TheTalosPrincipal_1.0.10.0_x64__6kzv4j18v0c96\Talos.exe
+  Log file:     (none)
+  */
   var page = modules.First();
   var gameDir = Path.GetDirectoryName(page.FileName);
   vars.log("Game directory: '" + gameDir + "'");
-
+  var logPath = "";
   var index = gameDir.LastIndexOf("\\Bin");
-  var logPath = gameDir.Substring(0, index + 1) + "Log/" + game.ProcessName + ".log";
+  if (index != -1) { // Steam
+    logPath = gameDir.Substring(0, index) + "\\Log\\" + game.ProcessName + ".log";
+  } else { // Epic (or Xbox, in which case the file won't exist anyways)
+    logPath = gameDir + "\\Log\\" + game.ProcessName + ".log";
+  }
   vars.log("Computed log path: '" + logPath + "'");
+  if (File.Exists(logPath)) {
+    try { // Wipe the log file to clear out messages from last time
+      FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
+      fs.SetLength(0);
+      fs.Close();
+    } catch {} // May fail if file doesn't exist.
+    vars.reader = new StreamReader(new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
+  } else {
+    vars.log("No log file found at computed log path, automatic start, stop, and splits will not work. Loading should still work if the timer is started manually.");
+    // Set defaults for the rest of the script. The start/split/reset blocks will not run, but the isLoading block will.
+    vars.reader = null;
+    vars.line = null;
+  }
 
   // To find the cheats pointer:
   // Open console (F1), and set cht_bEnableCheats = 1234
@@ -318,20 +352,6 @@ init {
       break;
   }
   vars.log("Using game version: " + version);
-
-  if (File.Exists(logPath)) {
-    try { // Wipe the log file to clear out messages from last time
-      FileStream fs = new FileStream(logPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite);
-      fs.SetLength(0);
-      fs.Close();
-    } catch {} // May fail if file doesn't exist.
-    vars.reader = new StreamReader(new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
-  } else {
-    vars.log("No log file found at computed log path, automatic start, stop, and splits will not work. Loading should still work if the timer is started manually.");
-    // Set defaults for the rest of the script. The start/split/reset blocks will not run, but the isLoading block will.
-    vars.reader = null;
-    vars.line = null;
-  }
 }
 
 exit {
@@ -415,6 +435,15 @@ split {
     if (mapName == vars.currentWorld) {
       vars.log("Restarted checkpoint in world " + mapName);
       return false; // Ensure 'restart checkpoint' doesn't trigger map change
+    }
+    if (settings["bug3"]) {
+      vars.log("Full line: " + vars.line);
+      vars.log("Map name: " + mapName);
+      vars.log("Current world: " + vars.currentWorld);
+      var a = settings["Split on return to Nexus or DLC Hub"];
+      var b = mapName.EndsWith("Nexus.wld");
+      var c = mapName.EndsWith("DLC_01_Hub.wld");
+      vars.log(a.ToString() + ' ' + b.ToString() + ' ' + c.ToString() + ' ' + (a && (b || c)).ToString());
     }
     if (settings["Split on return to Nexus or DLC Hub"] &&
       (mapName.EndsWith("Nexus.wld") || mapName.EndsWith("DLC_01_Hub.wld"))) {
